@@ -6,7 +6,47 @@ Sistema de gestión de PQRS (Peticiones, Quejas, Reclamos y Sugerencias) constru
 
 ## 🏗️ Arquitectura
 
-Aplicación backend basada en **Spring Boot** con una arquitectura de dominio limpio para la gestión completa del ciclo de vida de solicitudes PQRS.
+Aplicación backend basada en **Spring Boot** con **Clean Architecture** (Arquitectura Limpia) dividida en capas concéntricas:
+
+```
+src/main/java/com/jgtech/pqrs/
+├── PqrsSystemApplication.java      # Punto de entrada
+├── domain/                         # Capa de Dominio (núcleo)
+│   ├── model/
+│   │   └── Request.java            # Entidad de dominio con lógica de negocio
+│   ├── enums/
+│   │   └── RequestStatus.java      # Estados de la solicitud
+│   └── repository/
+│       └── RequestRepository.java  # Puerto (interfaz del repositorio)
+├── application/                    # Capa de Aplicación
+│   ├── dto/
+│   │   └── CreateRequestDto.java   # DTO de entrada para crear solicitud
+│   └── usecase/
+│       └── CreateRequestUseCase.java # Caso de uso: crear solicitud
+├── infrastructure/                 # Capa de Infraestructura
+│   ├── config/
+│   │   └── UseCaseConfig.java      # Configuración de beans
+│   └── persistence/
+│       ├── adapter/
+│       │   └── RequestRepositoryAdapter.java # Adaptador del repositorio
+│       ├── entity/
+│       │   └── RequestEntity.java  # Entidad JPA
+│       ├── mapper/
+│       │   └── RequestMapper.java    # Mapeador entity ↔ dominio
+│       └── repository/
+│           └── JpaRequestRepository.java # Repositorio JPA
+└── presentation/                   # Capa de Presentación
+    └── controller/
+        └── RequestController.java  # Controlador REST
+```
+
+### Principios de Clean Architecture aplicados
+
+- **Independencia del framework**: El dominio no depende de Spring
+- **Testable**: Casos de uso sin dependencias externas
+- **UI independiente**: Controlador desacoplado del dominio
+- **Base de datos independiente**: Adaptador JPA implementa el puerto
+- **Lógica de negocio central**: En el dominio, no en servicios
 
 ### Stack tecnológico
 
@@ -34,17 +74,28 @@ Aplicación backend basada en **Spring Boot** con una arquitectura de dominio li
 src/
 ├── main/
 │   ├── java/com/jgtech/pqrs/
-│   │   ├── PqrsSystemApplication.java          # Punto de entrada de la aplicación
-│   │   └── domain/
-│   │       ├── model/
-│   │       │   └── Request.java                 # Modelo de dominio PQRS
-│   │       └── enums/
-│   │           └── RequestStatus.java           # Estados posibles de una solicitud
+│   │   ├── PqrsSystemApplication.java          # Punto de entrada
+│   │   ├── domain/
+│   │   │   ├── model/Request.java            # Entidad con lógica de negocio
+│   │   │   ├── enums/RequestStatus.java        # Estados de solicitud
+│   │   │   └── repository/RequestRepository.java # Puerto
+│   │   ├── application/
+│   │   │   ├── dto/CreateRequestDto.java       # DTO de entrada
+│   │   │   └── usecase/CreateRequestUseCase.java # Caso de uso
+│   │   ├── infrastructure/
+│   │   │   ├── config/UseCaseConfig.java      # Bean config
+│   │   │   └── persistence/
+│   │   │       ├── adapter/RequestRepositoryAdapter.java
+│   │   │       ├── entity/RequestEntity.java
+│   │   │       ├── mapper/RequestMapper.java
+│   │   │       └── repository/JpaRequestRepository.java
+│   │   └── presentation/
+│   │       └── controller/RequestController.java # REST API
 │   └── resources/
-│       └── application.properties               # Configuración de la aplicación
+│       └── application.properties               # Configuración
 └── test/
     └── java/com/jgtech/pqrs/
-        └── PqrsSystemApplicationTests.java      # Tests de integración
+        └── PqrsSystemApplicationTests.java      # Tests
 ```
 
 ---
@@ -93,25 +144,44 @@ Todas las transiciones incluyen validaciones de estado para evitar cambios invá
 ### Pasos
 
 1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/<usuario>/pqrs-system.git
-   cd pqrs-system
-   ```
+    ```bash
+    git clone https://github.com/<usuario>/pqrs-system.git
+    cd pqrs-system
+    ```
 
-2. **Configurar la base de datos** en `src/main/resources/application.properties`:
-   ```properties
-   spring.datasource.url=jdbc:postgresql://localhost:5432/pqrs_db
-   spring.datasource.username=tu_usuario
-   spring.datasource.password=tu_contraseña
-   spring.jpa.hibernate.ddl-auto=update
-   ```
+2. **Iniciar PostgreSQL** (si no está corriendo):
+    ```bash
+    # macOS con Homebrew
+    brew services start postgresql
+    ```
 
-3. **Compilar y ejecutar**
-   ```bash
-   ./mvnw spring-boot:run
-   ```
+3. **Crear base de datos**:
+    ```bash
+    createdb pqrs
+    ```
 
-4. La aplicación estará disponible en `http://localhost:8080`
+4. **Configurar credenciales** en `src/main/resources/application.properties`:
+    ```properties
+    spring.datasource.url=jdbc:postgresql://localhost:5432/pqrs
+    spring.datasource.username=postgres
+    spring.datasource.password=tu_contraseña
+    spring.jpa.hibernate.ddl-auto=update
+    ```
+
+5. **Compilar y ejecutar**
+    ```bash
+    ./mvnw spring-boot:run
+    ```
+
+6. La aplicación estará disponible en `http://localhost:8080`
+
+### Probar el endpoint
+
+```bash
+curl -X POST http://localhost:8080/requests \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Sugerencia","description":"Mejorar la documentación"}'
+```
 
 ---
 
@@ -123,18 +193,57 @@ Todas las transiciones incluyen validaciones de estado para evitar cambios invá
 
 ---
 
+## 📋 API Endpoints
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `POST` | `/requests` | Crear nueva solicitud PQRS |
+
+### Request Body para crear solicitud
+
+```json
+{
+  "title": "Título de la solicitud",
+  "description": "Descripción detallada"
+}
+```
+
+### Response
+
+```json
+{
+  "id": 1,
+  "title": "Título de la solicitud",
+  "description": "Descripción detallada",
+  "status": "PENDING",
+  "createdAt": "2024-01-15T10:30:00"
+}
+```
+
+---
+
 ## 🚧 Estado del proyecto
 
-**En desarrollo activo.** El modelo de dominio está definido y funcional. Pendiente de implementar:
+**Implementado con Clean Architecture.** Componentes completados:
 
-- Controladores REST (API endpoints)
-- Repositorio JPA (`RequestRepository`)
-- Servicios de negocio
-- DTOs y mapeadores
-- Manejo de excepciones global
-- Seguridad / autenticación
-- Documentación Swagger/OpenAPI
-- Docker / Docker Compose
+- ✅ Modelo de dominio con lógica de negocio y transiciones de estado
+- ✅ Puertos (interfaces) del repositorio
+- ✅ Casos de uso
+- ✅ Adaptadores de persistencia con JPA
+- ✅ DTOs de entrada
+- ✅ Mapeadores entity ↔ dominio
+- ✅ Configuración de beans
+- ✅ Controlador REST
+
+Pendiente de implementar:
+
+- [ ] Endpoints GET (listar, buscar por ID)
+- [ ] Endpoints PUT (transiciones de estado: resolver, rechazar, iniciar revisión)
+- [ ] Manejo de excepciones global
+- [ ] Seguridad / autenticación
+- [ ] Validación de entrada con Bean Validation
+- [ ] Documentación Swagger/OpenAPI
+- [ ] Docker / Docker Compose
 
 ---
 
